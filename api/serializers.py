@@ -1,0 +1,129 @@
+from rest_framework import serializers
+from django.contrib.auth.models import User
+from .models import (
+    Category, Entry, Comment, Badge, Achievement, 
+    WeeklyGoal, UserProfile, Challenge, Habit, Reminder, Quote
+)
+
+
+class UserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ['id', 'username', 'email', 'first_name', 'last_name']
+
+
+class CommentSerializer(serializers.ModelSerializer):
+    user_name = serializers.CharField(source='user.username', read_only=True)
+    
+    class Meta:
+        model = Comment
+        fields = ['id', 'entry', 'user', 'user_name', 'content', 'timestamp']
+
+
+class CategorySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Category
+        fields = ['id', 'name', 'icon', 'color', 'custom', 'user']
+
+
+class EntrySerializer(serializers.ModelSerializer):
+    category_name = serializers.CharField(source='category.name', read_only=True)
+    comments_list = CommentSerializer(source='comments', many=True, read_only=True)
+    
+    class Meta:
+        model = Entry
+        fields = [
+            'id', 'content', 'category', 'category_name', 'timestamp', 
+            'mood', 'tags', 'image_url', 'is_public', 'likes', 'user', 'comments_list'
+        ]
+
+
+class BadgeSerializer(serializers.ModelSerializer):
+    earned_date = serializers.DateTimeField(read_only=True)
+    
+    class Meta:
+        model = Badge
+        fields = ['id', 'name', 'description', 'icon', 'earned', 'earned_date', 'user']
+
+
+class AchievementSerializer(serializers.ModelSerializer):
+    completed_date = serializers.DateTimeField(read_only=True)
+    
+    class Meta:
+        model = Achievement
+        fields = [
+            'id', 'name', 'description', 'progress', 'target', 
+            'completed_date', 'category', 'user'
+        ]
+
+
+class WeeklyGoalSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = WeeklyGoal
+        fields = ['id', 'category', 'target', 'current', 'completed', 'user']
+
+
+class UserProfileSerializer(serializers.ModelSerializer):
+    username = serializers.CharField(source='user.username', read_only=True)
+    email = serializers.EmailField(source='user.email', read_only=True)
+    
+    class Meta:
+        model = UserProfile
+        fields = [
+            'user', 'username', 'email', 'avatar', 'bio', 'level', 
+            'experience', 'streak_days', 'theme', 'notifications', 
+            'reminder_time', 'join_date'
+        ]
+
+
+class ChallengeSerializer(serializers.ModelSerializer):
+    start_date = serializers.DateTimeField(read_only=True)
+    end_date = serializers.DateTimeField(read_only=True)
+    
+    class Meta:
+        model = Challenge
+        fields = [
+            'id', 'title', 'description', 'duration', 'participants', 
+            'target', 'progress', 'joined', 'start_date', 'end_date', 
+            'reward_type', 'reward_value', 'user'
+        ]
+
+
+class HabitSerializer(serializers.ModelSerializer):
+    created_at = serializers.DateTimeField(read_only=True)
+    
+    class Meta:
+        model = Habit
+        fields = [
+            'id', 'name', 'description', 'category', 'frequency', 
+            'target', 'current', 'streak', 'color', 'icon', 
+            'created_at', 'completed_dates', 'user'
+        ]
+
+
+class ReminderSerializer(serializers.ModelSerializer):
+    last_triggered = serializers.DateTimeField(read_only=True)
+    
+    class Meta:
+        model = Reminder
+        fields = [
+            'id', 'user', 'type', 'message', 'time', 'days', 
+            'active', 'last_triggered'
+        ]
+
+
+class QuoteSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Quote
+        fields = ['id', 'text', 'author', 'category']
+
+
+class AnalyticsSerializer(serializers.Serializer):
+    total_entries = serializers.IntegerField()
+    average_mood = serializers.FloatField()
+    longest_streak = serializers.IntegerField()
+    current_streak = serializers.IntegerField()
+    categories_distribution = serializers.DictField()
+    mood_trend = serializers.FloatField()
+    weekly_progress = serializers.FloatField()
+    monthly_progress = serializers.FloatField()
