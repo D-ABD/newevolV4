@@ -36,6 +36,34 @@ class EntrySerializer(serializers.ModelSerializer):
             'id', 'content', 'category', 'category_name', 'timestamp', 
             'mood', 'tags', 'image_url', 'is_public', 'likes', 'user', 'comments_list'
         ]
+        read_only_fields = ['user']
+    
+    def to_internal_value(self, data):
+        # Si category est une chaîne (nom de catégorie), trouver l'objet correspondant
+        if isinstance(data.get('category'), str):
+            category_id = data['category']
+            # Essayer de trouver par ID d'abord
+            try:
+                from .models import Category
+                category = Category.objects.get(id=category_id)
+                data['category'] = category.id
+            except Category.DoesNotExist:
+                # Sinon, essayer de trouver par nom
+                try:
+                    category = Category.objects.get(name=category_id)
+                    data['category'] = category.id
+                except Category.DoesNotExist:
+                    raise serializers.ValidationError({
+                        'category': f"La catégorie '{category_id}' n'existe pas."
+                    })
+        return super().to_internal_value(data)
+    
+    def create(self, validated_data):
+        # Le user est automatiquement défini depuis la vue
+        request = self.context.get('request')
+        if request and hasattr(request, 'user'):
+            validated_data['user'] = request.user
+        return super().create(validated_data)
 
 
 class BadgeSerializer(serializers.ModelSerializer):
