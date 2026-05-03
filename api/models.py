@@ -7,6 +7,64 @@ def generate_uuid():
     return str(uuid.uuid4())
 
 
+class CalendarEntry(models.Model):
+    """Modèle pour les entrées du calendrier de progression"""
+    id = models.CharField(max_length=36, primary_key=True, default=generate_uuid)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='calendar_entries')
+    date = models.DateField()
+    entry_count = models.IntegerField(default=0)
+    average_mood = models.FloatField(default=0)
+    completed_habits = models.IntegerField(default=0)
+    streak_day = models.BooleanField(default=False)
+    
+    class Meta:
+        unique_together = ['user', 'date']
+        ordering = ['-date']
+    
+    def __str__(self):
+        return f"{self.user.username} - {self.date}"
+
+
+class PushNotification(models.Model):
+    """Modèle pour les notifications push"""
+    id = models.CharField(max_length=36, primary_key=True, default=generate_uuid)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='push_notifications')
+    title = models.CharField(max_length=200)
+    message = models.TextField()
+    notification_type = models.CharField(max_length=50, choices=[
+        ('reminder', 'Rappel'),
+        ('achievement', 'Succès'),
+        ('challenge', 'Défi'),
+        ('social', 'Social'),
+        ('custom', 'Personnalisé'),
+    ])
+    is_read = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    scheduled_for = models.DateTimeField(null=True, blank=True)
+    sent = models.BooleanField(default=False)
+    
+    def __str__(self):
+        return f"{self.title} - {self.user.username}"
+
+
+class NotificationToken(models.Model):
+    """Modèle pour stocker les tokens de notifications push (Firebase/Web Push)"""
+    id = models.CharField(max_length=36, primary_key=True, default=generate_uuid)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='notification_tokens')
+    token = models.TextField(unique=True)
+    platform = models.CharField(max_length=20, choices=[
+        ('web', 'Web'),
+        ('ios', 'iOS'),
+        ('android', 'Android'),
+    ])
+    created_at = models.DateTimeField(auto_now_add=True)
+    last_used = models.DateTimeField(null=True, blank=True)
+    active = models.BooleanField(default=True)
+    
+    def __str__(self):
+        return f"{self.user.username} - {self.platform}"
+
+
 class Category(models.Model):
     id = models.CharField(max_length=36, primary_key=True, default=generate_uuid)
     name = models.CharField(max_length=100)

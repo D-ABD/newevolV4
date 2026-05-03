@@ -32,6 +32,9 @@ router.register(r'challenges', views.ChallengeViewSet)
 router.register(r'habits', views.HabitViewSet)
 router.register(r'reminders', views.ReminderViewSet)
 router.register(r'quotes', views.QuoteViewSet)
+router.register(r'calendar', views.CalendarEntryViewSet, basename='calendar-entry')
+router.register(r'notifications', views.PushNotificationViewSet, basename='notification')
+router.register(r'notification-tokens', views.NotificationTokenViewSet, basename='notification-token')
 router.register(r'analytics', views.AnalyticsViewSet, basename='analytics')
 
 urlpatterns = [

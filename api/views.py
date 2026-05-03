@@ -1,3 +1,4 @@
+from django.utils import timezone
 from rest_framework import viewsets, permissions
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.authtoken.models import Token
@@ -7,10 +8,12 @@ from django.contrib.auth.models import User
 from django.db.models import Avg, Count
 from django.db import models as django_models
 from .models import (
+    CalendarEntry, PushNotification, NotificationToken,
     Category, Entry, Comment, Badge, Achievement, 
     WeeklyGoal, UserProfile, Challenge, Habit, Reminder, Quote
 )
 from .serializers import (
+    CalendarEntrySerializer, PushNotificationSerializer, NotificationTokenSerializer,
     UserSerializer, CategorySerializer, EntrySerializer, CommentSerializer,
     BadgeSerializer, AchievementSerializer, WeeklyGoalSerializer,
     UserProfileSerializer, ChallengeSerializer, HabitSerializer,
@@ -294,3 +297,127 @@ class AnalyticsViewSet(viewsets.ViewSet):
 
         serializer = AnalyticsSerializer(data)
         return Response(serializer.data)
+
+
+class CalendarEntryViewSet(viewsets.ModelViewSet):
+    queryset = CalendarEntry.objects.all()
+    serializer_class = CalendarEntrySerializer
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+
+    def get_queryset(self):
+        if self.request.user.is_authenticated:
+            return CalendarEntry.objects.filter(user=self.request.user)
+        return CalendarEntry.objects.none()
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
+
+    @action(detail=False, methods=['get'])
+    def month(self, request):
+        """Récupérer les entrées du calendrier pour un mois donné"""
+        year = request.query_params.get('year')
+        month = request.query_params.get('month')
+        
+        if not year or not month:
+            return Response({'error': 'year and month parameters are required'}, status=400)
+        
+        entries = CalendarEntry.objects.filter(
+            user=request.user,
+            date__year=year,
+            date__month=month
+        )
+        serializer = self.get_serializer(entries, many=True)
+        return Response(serializer.data)
+
+    @action(detail=False, methods=['get'])
+    def summary(self, request):
+        """Résumé du calendrier pour l'année en cours"""
+        from django.db.models import Avg, Sum, Count
+        
+        today = timezone.now().date()
+        start_of_year = today.replace(month=1, day=1)
+        
+        entries = CalendarEntry.objects.filter(
+            user=request.user,
+            date__gte=start_of_year
+        )
+        
+        total_entries = entries.aggregate(Sum('entry_count'))['entry_count__sum'] or 0
+        avg_mood = entries.aggregate(Avg('average_mood'))['average_mood__avg'] or 0
+        total_habits = entries.aggregate(Sum('completed_habits'))['completed_habits__sum'] or 0
+        streak_days = entries.filter(streak_day=True).count()
+        
+        return Response({
+            'total_entries': total_entries,
+            'average_mood': round(avg_mood, 2),
+            'total_habits_completed': total_habits,
+            'streak_days': streak_days,
+            'days_with_entries': entries.count(),
+        })
+
+
+class PushNotificationViewSet(viewsets.ModelViewSet):
+    queryset = PushNotification.objects.all()
+    serializer_class = PushNotificationSerializer
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+
+    def get_queryset(self):
+        if self.request.user.is_authenticated:
+            return PushNotification.objects.filter(user=self.request.user).order_by('-created_at')
+        return PushNotification.objects.none()
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
+
+    @action(detail=True, methods=['post'])
+    def mark_read(self, request, pk=None):
+        """Marquer une notification comme lue"""
+        notification = self.get_object()
+        notification.is_read = True
+        notification.save()
+        return Response({'status': 'marked as read'})
+
+    @action(detail=False, methods=['post'])
+    def mark_all_read(self, request):
+        """Marquer toutes les notifications comme lues"""
+        PushNotification.objects.filter(user=request.user, is_read=False).update(is_read=True)
+        return Response({'status': 'all marked as read'})
+
+    @action(detail=False, methods=['get'])
+    def unread_count(self, request):
+        """Compter le nombre de notifications non lues"""
+        count = PushNotification.objects.filter(user=request.user, is_read=False).count()
+        return Response({'unread_count': count})
+
+
+class NotificationTokenViewSet(viewsets.ModelViewSet):
+    queryset = NotificationToken.objects.all()
+    serializer_class = NotificationTokenSerializer
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+
+    def get_queryset(self):
+        if self.request.user.is_authenticated:
+            return NotificationToken.objects.filter(user=request.user, active=True)
+        return NotificationToken.objects.none()
+
+    def perform_create(self, serializer):
+        # Désactiver les anciens tokens pour ce device
+        token = serializer.validated_data.get('token')
+        platform = serializer.validated_data.get('platform')
+        NotificationToken.objects.filter(
+            user=self.request.user,
+            token=token,
+            platform=platform
+        ).update(active=False)
+        serializer.save(user=self.request.user)
+
+    @action(detail=True, methods=['post'])
+    def deactivate(self, request, pk=None):
+        """Désactiver un token de notification"""
+        token = self.get_object()
+        token.active = False
+        token.save()
+        return Response({'status': 'deactivated'})
+
+
+# Import timezone pour les vues
