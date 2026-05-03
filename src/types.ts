@@ -170,3 +170,34 @@ export interface Analytics {
   weeklyProgress: number;
   monthlyProgress: number;
 }
+export interface CalendarEntry {
+  id: string;
+  userId: string;
+  date: string;
+  entryCount: number;
+  averageMood: number;
+  completedHabits: number;
+  streakDay: boolean;
+}
+
+export interface PushNotification {
+  id: string;
+  userId: string;
+  title: string;
+  message: string;
+  notificationType: 'reminder' | 'achievement' | 'challenge' | 'social' | 'custom';
+  isRead: boolean;
+  createdAt: Date;
+  scheduledFor?: Date;
+  sent: boolean;
+}
+
+export interface NotificationToken {
+  id: string;
+  userId: string;
+  token: string;
+  platform: 'web' | 'ios' | 'android';
+  createdAt: Date;
+  lastUsed?: Date;
+  active: boolean;
+}

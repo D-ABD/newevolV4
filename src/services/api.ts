@@ -470,3 +470,82 @@ export const exportData = async (): Promise<Blob> => {
   });
   return response.data;
 };
+
+// ==================== CALENDAR ====================
+
+export const getCalendarEntries = async (year: number, month: number): Promise<CalendarEntry[]> => {
+  const response = await api.get(`/calendar/month/?year=${year}&month=${month}`);
+  return response.data.map((entry: any) => ({
+    id: entry.id.toString(),
+    userId: entry.user?.id?.toString() || entry.user_id,
+    date: entry.date,
+    entryCount: entry.entry_count || 0,
+    averageMood: entry.average_mood || 0,
+    completedHabits: entry.completed_habits || 0,
+    streakDay: entry.streak_day || false,
+  }));
+};
+
+export const getCalendarSummary = async (): Promise<{
+  totalEntries: number;
+  averageMood: number;
+  totalHabitsCompleted: number;
+  streakDays: number;
+  daysWithEntries: number;
+}> => {
+  const response = await api.get('/calendar/summary/');
+  return {
+    totalEntries: response.data.total_entries || 0,
+    averageMood: response.data.average_mood || 0,
+    totalHabitsCompleted: response.data.total_habits_completed || 0,
+    streakDays: response.data.streak_days || 0,
+    daysWithEntries: response.data.days_with_entries || 0,
+  };
+};
+
+// ==================== NOTIFICATIONS ====================
+
+export const getNotifications = async (): Promise<PushNotification[]> => {
+  const response = await api.get('/notifications/');
+  return response.data.map((notif: any) => ({
+    id: notif.id.toString(),
+    userId: notif.user?.id?.toString() || notif.user_id,
+    title: notif.title,
+    message: notif.message,
+    notificationType: notif.notification_type,
+    isRead: notif.is_read || false,
+    createdAt: parseDate(notif.created_at),
+    scheduledFor: notif.scheduled_for ? parseDate(notif.scheduled_for) : undefined,
+    sent: notif.sent || false,
+  }));
+};
+
+export const markNotificationAsRead = async (id: string): Promise<void> => {
+  await api.post(`/notifications/${id}/mark_read/`);
+};
+
+export const markAllNotificationsAsRead = async (): Promise<void> => {
+  await api.post('/notifications/mark_all_read/');
+};
+
+export const getUnreadNotificationsCount = async (): Promise<number> => {
+  const response = await api.get('/notifications/unread_count/');
+  return response.data.unread_count || 0;
+};
+
+export const registerNotificationToken = async (token: string, platform: 'web' | 'ios' | 'android'): Promise<NotificationToken> => {
+  const response = await api.post('/notification-tokens/', { token, platform });
+  return {
+    id: response.data.id.toString(),
+    userId: response.data.user?.id?.toString() || response.data.user_id,
+    token: response.data.token,
+    platform: response.data.platform,
+    createdAt: parseDate(response.data.created_at),
+    lastUsed: response.data.last_used ? parseDate(response.data.last_used) : undefined,
+    active: response.data.active ?? true,
+  };
+};
+
+export const unregisterNotificationToken = async (id: string): Promise<void> => {
+  await api.post(`/notification-tokens/${id}/deactivate/`);
+};

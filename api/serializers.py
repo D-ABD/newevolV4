@@ -2,7 +2,8 @@ from rest_framework import serializers
 from django.contrib.auth.models import User
 from .models import (
     Category, Entry, Comment, Badge, Achievement, 
-    WeeklyGoal, UserProfile, Challenge, Habit, Reminder, Quote
+    WeeklyGoal, UserProfile, Challenge, Habit, Reminder, Quote,
+    CalendarEntry, PushNotification, NotificationToken
 )
 
 
@@ -155,3 +156,35 @@ class AnalyticsSerializer(serializers.Serializer):
     mood_trend = serializers.FloatField()
     weekly_progress = serializers.FloatField()
     monthly_progress = serializers.FloatField()
+
+
+class CalendarEntrySerializer(serializers.ModelSerializer):
+    date = serializers.DateField(format='%Y-%m-%d')
+    
+    class Meta:
+        model = CalendarEntry
+        fields = ['id', 'user', 'date', 'entry_count', 'average_mood', 'completed_habits', 'streak_day']
+        read_only_fields = ['user']
+
+
+class PushNotificationSerializer(serializers.ModelSerializer):
+    created_at = serializers.DateTimeField(read_only=True)
+    scheduled_for = serializers.DateTimeField(required=False, allow_null=True)
+    
+    class Meta:
+        model = PushNotification
+        fields = [
+            'id', 'user', 'title', 'message', 'notification_type',
+            'is_read', 'created_at', 'scheduled_for', 'sent'
+        ]
+        read_only_fields = ['user', 'sent']
+
+
+class NotificationTokenSerializer(serializers.ModelSerializer):
+    created_at = serializers.DateTimeField(read_only=True)
+    last_used = serializers.DateTimeField(read_only=True)
+    
+    class Meta:
+        model = NotificationToken
+        fields = ['id', 'user', 'token', 'platform', 'created_at', 'last_used', 'active']
+        read_only_fields = ['user', 'created_at', 'last_used']
